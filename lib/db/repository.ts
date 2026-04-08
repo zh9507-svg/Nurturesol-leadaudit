@@ -143,6 +143,14 @@ function serializeLogForCreate(log: RunLog) {
   };
 }
 
+function fromJson<T>(value: Prisma.JsonValue | null): T | undefined {
+  if (value === null) {
+    return undefined;
+  }
+
+  return value as unknown as T;
+}
+
 function hydrateRun(run: {
   id: string;
   status: ResearchRunRecord["status"];
@@ -229,19 +237,19 @@ function hydrateRun(run: {
       postal_code: lead.postalCode ?? undefined,
       rating: lead.rating ?? undefined,
       review_count: lead.reviewCount ?? undefined,
-      hours: (lead.hours as LeadRecord["hours"]) ?? undefined,
-      social_links: (lead.socialLinks as LeadRecord["social_links"]) ?? undefined,
+      hours: fromJson<LeadRecord["hours"]>(lead.hours),
+      social_links: fromJson<LeadRecord["social_links"]>(lead.socialLinks),
       multiple_locations: lead.multipleLocations,
       active_status: lead.activeStatus ?? undefined,
       website_missing: lead.websiteMissing,
       location_targeted: run.locationTargeted,
       discovery_source: "persisted-run",
       website_present: lead.websitePresent,
-      audit: (lead.audit as LeadRecord["audit"]) ?? undefined,
-      scoring: (lead.scoring as LeadRecord["scoring"]) ?? undefined,
-      service_recommendation: (lead.serviceRecommendation as LeadRecord["service_recommendation"]) ?? undefined,
-      pitch_plan: (lead.pitchPlan as LeadRecord["pitch_plan"]) ?? undefined,
-      outreach: (lead.outreach as LeadRecord["outreach"]) ?? undefined
+      audit: fromJson<LeadRecord["audit"]>(lead.audit),
+      scoring: fromJson<LeadRecord["scoring"]>(lead.scoring),
+      service_recommendation: fromJson<LeadRecord["service_recommendation"]>(lead.serviceRecommendation),
+      pitch_plan: fromJson<LeadRecord["pitch_plan"]>(lead.pitchPlan),
+      outreach: fromJson<LeadRecord["outreach"]>(lead.outreach)
     })),
     logs: run.logs.map((log) => ({
       id: log.id,
