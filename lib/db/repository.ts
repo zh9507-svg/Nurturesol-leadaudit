@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { buildDemoRun } from "@/lib/sample-data/demo-run";
+import { getRunFromGoogleSheets, isGoogleSheetsConfigured, saveRunToGoogleSheets } from "@/lib/db/google-sheets";
 import { SAMPLE_AUDIT_FINDINGS, SAMPLE_COLD_EMAIL_TEMPLATES, SAMPLE_PITCH_ANGLES, SAMPLE_SERVICE_RECOMMENDATIONS } from "@/lib/sample-data/templates";
 import { getPrismaClient } from "@/lib/db/prisma";
 import type { LeadRecord, ResearchRunInput, ResearchRunRecord, RunLog } from "@/types";
@@ -10,73 +11,86 @@ export async function createRun(input: ResearchRunInput) {
   const run = await buildDemoRun(input);
   const prisma = getPrismaClient();
 
-  if (!prisma) {
-    if (process.env.VERCEL) {
-      throw new Error("DATABASE_URL is required on Vercel to persist research runs.");
-    }
+  if (prisma) {
+    await prisma.researchRun.create({
+      data: {
+        id: run.id,
+        locationTargeted: run.location_targeted,
+        industryTargeted: run.industry_targeted,
+        requestedBusinessCount: run.requested_business_count,
+        minimumRating: run.minimum_rating,
+        includeWithoutWebsites: run.include_without_websites,
+        generateColdEmails: run.generate_cold_emails,
+        exportReadyMode: run.export_ready_mode,
+        status: run.status,
+        businessesDiscovered: run.businesses_discovered,
+        businessesAudited: run.businesses_audited,
+        failuresCount: run.failures_count,
+        retryCount: run.retry_count,
+        strategyUsed: run.strategy_used,
+        startedAt: new Date(run.started_at),
+        completedAt: run.completed_at ? new Date(run.completed_at) : null,
+        leads: {
+          create: run.leads.map(serializeLeadForCreate)
+        },
+        logs: {
+          create: run.logs.map(serializeLogForCreate)
+        }
+      }
+    });
 
-    runs.set(run.id, run);
     return run;
   }
 
-  await prisma.researchRun.create({
-    data: {
-      id: run.id,
-      locationTargeted: run.location_targeted,
-      industryTargeted: run.industry_targeted,
-      requestedBusinessCount: run.requested_business_count,
-      minimumRating: run.minimum_rating,
-      includeWithoutWebsites: run.include_without_websites,
-      generateColdEmails: run.generate_cold_emails,
-      exportReadyMode: run.export_ready_mode,
-      status: run.status,
-      businessesDiscovered: run.businesses_discovered,
-      businessesAudited: run.businesses_audited,
-      failuresCount: run.failures_count,
-      retryCount: run.retry_count,
-      strategyUsed: run.strategy_used,
-      startedAt: new Date(run.started_at),
-      completedAt: run.completed_at ? new Date(run.completed_at) : null,
-      leads: {
-        create: run.leads.map(serializeLeadForCreate)
-      },
-      logs: {
-        create: run.logs.map(serializeLogForCreate)
-      }
-    }
-  });
+  if (isGoogleSheetsConfigured()) {
+    await saveRunToGoogleSheets(run);
+    return run;
+  }
 
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Set DATABASE_URL for Postgres, or set GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CLIENT_EMAIL, and GOOGLE_SHEETS_PRIVATE_KEY to use the Google Sheets workaround."
+    );
+  }
+
+  runs.set(run.id, run);
   return run;
 }
 
 export async function getRun(runId: string) {
   const prisma = getPrismaClient();
 
-  if (!prisma) {
-    if (process.env.VERCEL) {
-      throw new Error("DATABASE_URL is required on Vercel to load persisted research runs.");
-    }
-
-    return runs.get(runId) ?? null;
-  }
-
-  const run = await prisma.researchRun.findUnique({
-    where: { id: runId },
-    include: {
-      leads: {
-        orderBy: {
-          createdAt: "asc"
-        }
-      },
-      logs: {
-        orderBy: {
-          createdAt: "asc"
+  if (prisma) {
+    const run = await prisma.researchRun.findUnique({
+      where: { id: runId },
+      include: {
+        leads: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        },
+        logs: {
+          orderBy: {
+            createdAt: "asc"
+          }
         }
       }
-    }
-  });
+    });
 
-  return run ? hydrateRun(run) : null;
+    return run ? hydrateRun(run) : null;
+  }
+
+  if (isGoogleSheetsConfigured()) {
+    return getRunFromGoogleSheets(runId);
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Set DATABASE_URL for Postgres, or set GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CLIENT_EMAIL, and GOOGLE_SHEETS_PRIVATE_KEY to use the Google Sheets workaround."
+    );
+  }
+
+  return runs.get(runId) ?? null;
 }
 
 export function listTemplates() {
