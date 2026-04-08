@@ -13,19 +13,28 @@ const createRunSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const json = await request.json();
-  const parsed = createRunSchema.safeParse(json);
+  try {
+    const json = await request.json();
+    const parsed = createRunSchema.safeParse(json);
 
-  if (!parsed.success) {
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Every run requires a valid location and industry, plus valid run settings.",
+          details: parsed.error.flatten()
+        },
+        { status: 400 }
+      );
+    }
+
+    const run = await createRun(parsed.data);
+    return NextResponse.json({ id: run.id, status: run.status });
+  } catch (error) {
     return NextResponse.json(
       {
-        error: "Every run requires a valid location and industry, plus valid run settings.",
-        details: parsed.error.flatten()
+        error: error instanceof Error ? error.message : "Unable to create run."
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
-
-  const run = await createRun(parsed.data);
-  return NextResponse.json({ id: run.id, status: run.status });
 }
