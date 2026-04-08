@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RunStatus {
+  queued
+  discovering
+  auditing
+  scoring
+  completed
+  partial_failure
+  failed
+}
+
+enum LeadPriority {
+  high
+  medium
+  low
+}
+
+model ResearchRun {
+  id                           String   @id @default(cuid())
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  locationTargeted             String
+  industryTargeted             String
+  requestedBusinessCount       Int
+  minimumRating                Float?
+  includeWithoutWebsites       Boolean  @default(true)
+  generateColdEmails           Boolean  @default(true)
+  exportReadyMode              Boolean  @default(false)
+  status                       RunStatus @default(queued)
+  businessesDiscovered         Int       @default(0)
+  businessesAudited            Int       @default(0)
+  failuresCount                Int       @default(0)
+  retryCount                   Int       @default(0)
+  statusMessage                String?
+  strategyUsed                 String?
+  startedAt                    DateTime?
+  completedAt                  DateTime?
+  leads                        Lead[]
+  logs                         RunLog[]
+}
+
+model Lead {
+  id                           String   @id @default(cuid())
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  researchRunId                String
+  businessName                 String
+  category                     String?
+  industry                     String
+  subCategory                  String?
+  googleMapsUrl                String?
+  website                      String?
+  phone                        String?
+  email                        String?
+  address                      String?
+  city                         String?
+  state                        String?
+  postalCode                   String?
+  rating                       Float?
+  reviewCount                  Int?
+  hours                        Json?
+  socialLinks                  Json?
+  multipleLocations            Boolean  @default(false)
+  activeStatus                 String?
+  websiteMissing               Boolean  @default(false)
+  websitePresent               Boolean  @default(false)
+  audit                        Json?
+  scoring                      Json?
+  serviceRecommendation        Json?
+  pitchPlan                    Json?
+  outreach                     Json?
+  leadPriority                 LeadPriority @default(medium)
+  manualReviewRequired         Boolean  @default(false)
+  researchRun                  ResearchRun @relation(fields: [researchRunId], references: [id], onDelete: Cascade)
+
+  @@index([researchRunId])
+  @@index([industry])
+  @@index([leadPriority])
+}
+
+model RunLog {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  researchRunId String
+  level         String
+  phase         String
+  message       String
+  metadata      Json?
+  researchRun   ResearchRun @relation(fields: [researchRunId], references: [id], onDelete: Cascade)
+
+  @@index([researchRunId, phase])
+}
