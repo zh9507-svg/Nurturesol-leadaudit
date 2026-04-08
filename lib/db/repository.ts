@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { buildDemoRun } from "@/lib/sample-data/demo-run";
 import { SAMPLE_AUDIT_FINDINGS, SAMPLE_COLD_EMAIL_TEMPLATES, SAMPLE_PITCH_ANGLES, SAMPLE_SERVICE_RECOMMENDATIONS } from "@/lib/sample-data/templates";
 import { getPrismaClient } from "@/lib/db/prisma";
