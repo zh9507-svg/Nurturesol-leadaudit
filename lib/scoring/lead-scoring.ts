@@ -33,7 +33,11 @@ export function scoreLead(business: DiscoveryBusiness, audit?: WebsiteAudit): Le
           : "low";
 
   const ease_of_closing_estimate =
-    business.rating && business.rating >= 4.4 && (business.review_count ?? 0) > 20 ? "high" : "medium";
+    business.rating && business.rating >= 4.4 && (business.review_count ?? 0) > 20
+      ? "high"
+      : business.rating && business.rating >= 4.0
+        ? "medium"
+        : "low";
 
   const lead_priority =
     opportunity_band === "High Opportunity" && ease_of_closing_estimate !== "low"
